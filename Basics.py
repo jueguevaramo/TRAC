@@ -54,9 +54,9 @@ def DTImodel(data,affine,mask,gtab,keep=False):
 
 def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
     data, affine=resli(ImgPath,keep=True)
+    data= Nonlocal(data,affine,keep=True)
     b0_mask, mask=otsu(data,affine,keep=True)  #maask binary 
-    non= Nonlocal(b0_mask,affine,keep=True)
-    evals,evecs=DTImodel(non,affine,mask,gtab(Bvalpath,Bvecpath))
+    evals,evecs=DTImodel(b0_mask,affine,mask,gtab(Bvalpath,Bvecpath))
     print('--> Calculando el mapa de anisotropia fraccional')
     FA = fractional_anisotropy(evals)
     FA[np.isnan(FA)] = 0
