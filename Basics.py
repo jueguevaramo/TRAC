@@ -1,3 +1,4 @@
+import time
 import nibabel as nib
 import numpy as np
 from dipy.data import get_data
@@ -11,6 +12,9 @@ import dipy.reconst.dti as dti
 from dipy.reconst.dti import color_fa, fractional_anisotropy, quantize_evecs
 from dipy.data import get_sphere
 from dipy.tracking.eudx import EuDX
+from dipy.segment.tissue import TissueClassifierHMRF
+from dipy.data import read_tissue_data
+
 
 def resli(ImgPath,keep=False,newzooms=(2.,2.,2.)): #Corregir newzooms entrada
     img=nib.load(ImgPath)
@@ -84,3 +88,18 @@ def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
         ten_sl_fname = "Tracto.trk"
         nib.trackvis.write(ten_sl_fname, tensor_streamlines_trk, hdr, points_space='voxel')
     return ("Done")
+
+def segmentation(t1_path):
+    t1_img=read_tissue_data(t1_path)
+    t1=t1_img.get_data()
+    print('t1.shape (%d, %d, %d)' % t1.shape)
+    
+    nclass, beta = 3, 0.1    
+    t0 = time.time()
+    print('--> Computing segmentation')
+    hmrf = TissueClassifierHMRF()
+    initial_segmentation, final_segmentation, PVE = hmrf.classify(t1, nclass, beta)
+    t1 = time.time()
+    total_time = t1-t0
+    print('Total time:' + str(total_time))
+    return 'Done'
