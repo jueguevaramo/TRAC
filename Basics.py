@@ -20,13 +20,13 @@ def resli(ImgPath,keep=False,newzooms=(2.,2.,2.)): #Corregir newzooms entrada
     img=nib.load(ImgPath)
     data=img.get_data()
     affine=img.affine
-    zooms=img.header.get_zooms()[:3] #poner condicion de zooms 
+    zooms=img.header.get_zooms()[:3] #poner condicion de zooms
     data, affine = reslice(data, affine, zooms,newzooms)
     if keep:
         nib.save(nib.Nifti1Image(data, affine),"Reslice")
     return data, affine
 
-def otsu(data,affine,median=4,pas=4,keep=False): #Corregir median, pas entrada 
+def otsu(data,affine,median=4,pas=4,keep=False): #Corregir median, pas entrada
     b0_mask, mask = median_otsu(data,median,pas)
     if keep:
         nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask")
@@ -38,7 +38,7 @@ def Nonlocal(data,affine,keep=False,filt=26): #Preguntar! #No usan denoise image
     data2 = data #Preguntar
     sigma = np.std(data2[~mask])
     den = nlmeans(data2, sigma=sigma, mask=mask)
-    if keep:    
+    if keep:
         nib.save(nib.Nifti1Image(den.astype(np.float32),affine),"Nonlocal")
     return den
 
@@ -59,7 +59,7 @@ def DTImodel(data,affine,mask,gtab,keep=False):
 def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
     data, affine=resli(ImgPath,keep=True)
     data= Nonlocal(data,affine,keep=True)
-    b0_mask, mask=otsu(data,affine,keep=True)  #maask binary 
+    b0_mask, mask=otsu(data,affine,keep=True)  #maask binary
     evals,evecs=DTImodel(b0_mask,affine,mask,gtab(Bvalpath,Bvecpath))
     print('--> Calculando el mapa de anisotropia fraccional')
     FA = fractional_anisotropy(evals)
@@ -90,11 +90,13 @@ def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
     return ("Done")
 
 def segmentation(t1_path):
+    data, affine=resli(ImgPath,keep=True)
+    data= Nonlocal(data,affine,keep=True)
+    b0_mask, mask=otsu(data,affine,keep=True)
     t1_img=read_tissue_data(t1_path)
     t1=t1_img.get_data()
     print('t1.shape (%d, %d, %d)' % t1.shape)
-    
-    nclass, beta = 3, 0.1    
+    nclass, beta = 3, 0.1
     t0 = time.time()
     print('--> Computing segmentation')
     hmrf = TissueClassifierHMRF()
