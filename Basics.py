@@ -26,7 +26,7 @@ def resli(ImgPath,keep=False,newzooms=(2.,2.,2.)): #Corregir newzooms entrada
         nib.save(nib.Nifti1Image(data, affine),"Reslice")
     return data, affine
 
-def otsu(data,affine,median=4,pas=4,keep=False): #Corregir median, pas entrada
+def otsu(data,affine,median=6,pas=4,keep=False): #Corregir median, pas entrada
     b0_mask, mask = median_otsu(data,median,pas)
     if keep:
         nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask")
@@ -90,11 +90,7 @@ def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
     return ("Done")
 
 def segmentation(t1_path):
-    data, affine=resli(ImgPath,keep=True)
-    data= Nonlocal(data,affine,keep=True)
-    b0_mask, mask=otsu(data,affine,keep=True)
-    t1_img=read_tissue_data(t1_path)
-    t1=t1_img.get_data()
+    t1, affine=preproccesing(t1_path,save=False)
     print('t1.shape (%d, %d, %d)' % t1.shape)
     nclass, beta = 3, 0.1
     t0 = time.time()
@@ -104,4 +100,13 @@ def segmentation(t1_path):
     t1 = time.time()
     total_time = t1-t0
     print('Total time:' + str(total_time))
-    return 'Done'
+    return PVE
+
+def preproccesing(img_path,save=True):
+    print("--> Preproccesing")
+    data, affine=resli(img_path)
+    b0_mask, mask=otsu(data,affine)  #maask binary
+    if save:
+        nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask_img")
+        nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),"OtsuMask_img")
+    return b0_mask , affine
