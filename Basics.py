@@ -26,15 +26,18 @@ def resli(ImgPath,keep=False,newzooms=(2.,2.,2.)): #Corregir newzooms entrada
         nib.save(nib.Nifti1Image(data, affine),"Reslice")
     return data, affine
 
-def otsu(data,affine,median=6,pas=4,keep=False): #Corregir median, pas entrada
+def otsu(data,affine,median=4,pas=4,keep=False): #Corregir median, pas entrada
     b0_mask, mask = median_otsu(data,median,pas)
     if keep:
         nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask")
         nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),"OtsuMask")
     return b0_mask, mask
 
-def Nonlocal(data,affine,keep=False,filt=26): #Preguntar! #No usan denoise images PCA
-    mask = data[..., 1] > filt
+def Nonlocal(data,affine,keep=False,filt=100): #Preguntar! #No usan denoise images PCA
+    if len(data.shape)== 3:
+        mask = data >filt
+    else:
+        mask = data[..., 1] > filt
     data2 = data #Preguntar
     sigma = np.std(data2[~mask])
     den = nlmeans(data2, sigma=sigma, mask=mask)
@@ -105,6 +108,7 @@ def segmentation(t1_path):
 def preproccesing(img_path,save=True):
     print("--> Preproccesing")
     data, affine=resli(img_path)
+    data= Nonlocal(data,affine)
     b0_mask, mask=otsu(data,affine)  #maask binary
     if save:
         nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask_img")
