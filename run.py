@@ -1,3 +1,5 @@
 from Paths import *
-from Basics import DTImaps
-DTImaps(In.img,In.bval,In.bvec)
+from Basics import segmentation
+import numpy as np
+import matplotlib.pyplot as plt
+PVE =segmentation(In.t1)
