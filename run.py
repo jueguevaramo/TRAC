@@ -1,5 +1,10 @@
 from Paths import *
-from Basics import segmentation
+from Basics import DTImaps
 import numpy as np
 import matplotlib.pyplot as plt
-PVE =segmentation(In.t1)
+import seaborn as sns
+sns.set()
+FA=DTImaps(In.img,In.bval,In.bvec,tracto=False)
+plt.hist(np.ravel(FA))
+sns.kdeplot(np.ravel(FA),shade=True)
+plt.show()

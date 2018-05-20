@@ -60,9 +60,9 @@ def DTImodel(data,affine,mask,gtab,keep=False):
     return tenfit.evals,tenfit.evecs
 
 def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
-    data, affine=resli(ImgPath,keep=True)
-    data= Nonlocal(data,affine,keep=True)
-    b0_mask, mask=otsu(data,affine,keep=True)  #maask binary
+    data, affine=resli(ImgPath)
+    data= Nonlocal(data,affine)
+    b0_mask, mask=otsu(data,affine)  #maask binary
     evals,evecs=DTImodel(b0_mask,affine,mask,gtab(Bvalpath,Bvecpath))
     print('--> Calculando el mapa de anisotropia fraccional')
     FA = fractional_anisotropy(evals)
@@ -90,7 +90,7 @@ def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
         tensor_streamlines_trk = ((sl, None, None) for sl in tensor_streamlines)
         ten_sl_fname = "Tracto.trk"
         nib.trackvis.write(ten_sl_fname, tensor_streamlines_trk, hdr, points_space='voxel')
-    return ("Done")
+    return FA
 
 def segmentation(t1_path):
     t1, affine=preproccesing(t1_path,save=False)
