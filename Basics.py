@@ -1,6 +1,7 @@
 import time
 import nibabel as nib
 import numpy as np
+import matplotlib.pyplot as plt
 from dipy.data import get_data
 from dipy.io import read_bvals_bvecs
 from dipy.io import read_bvals_bvecs
@@ -93,7 +94,7 @@ def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
     return FA
 
 def segmentation(t1_path):
-    t1, affine=preproccesing(t1_path,save=False)
+    t1, t1bin,affine=preproccesing(t1_path,save=False)
     print('t1.shape (%d, %d, %d)' % t1.shape)
     nclass, beta = 3, 0.1
     t0 = time.time()
@@ -110,7 +111,29 @@ def preproccesing(img_path,save=True):
     data, affine=resli(img_path)
     data= Nonlocal(data,affine)
     b0_mask, mask=otsu(data,affine)  #maask binary
-    if save:
+    if save: #PREGUNTAR COMO GURARDAR AFFINE
         nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask_img")
         nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),"OtsuMask_img")
-    return b0_mask , affine
+    return b0_mask ,mask ,affine
+
+def fahist(b0_mask ,mask ,affine,Bvalpath,Bvecpath,t1_path):
+    PVE=segmentation(t1_path)
+    evals,evecs=DTImodel(b0_mask,affine,mask,gtab(Bvalpath,Bvecpath))
+    print('--> Calculando el mapa de anisotropia fraccional')
+    FA = fractional_anisotropy(evals)
+    print(FA.shape)
+    FA[np.isnan(FA)] = 0
+    nib.save(nib.Nifti1Image(FA.astype(np.float32), affine),"Mapa_anisotropia_fraccional")
+    CSF  = np.ravel(FA[PVE[...,0]>0.8])
+    Gray = np.ravel(FA[PVE[...,1]>0.8])
+    White= np.ravel(FA[PVE[...,2]>0.8])
+    plt.subplot(1,3,1)
+    plt.hist(CSF,label="CFS")
+    plt.legend()
+    plt.subplot(1,3,2)
+    plt.hist(Gray,label="Gray Matter")
+    plt.legend()
+    plt.subplot(1,3,3)
+    plt.hist(White,label="White Matter")
+    plt.legend()
+    return None
