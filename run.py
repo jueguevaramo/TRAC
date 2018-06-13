@@ -4,7 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-b0_mask ,mask ,affine =preproccesing(In.img,save=False)
+
+
+b0_mask,mask,affine =preproccesing(In.img,save=False)
 fahist(b0_mask ,mask ,affine,In.bval,In.bvec,In.t1)
 
 

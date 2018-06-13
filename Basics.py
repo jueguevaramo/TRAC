@@ -15,7 +15,7 @@ from dipy.data import get_sphere
 from dipy.tracking.eudx import EuDX
 from dipy.segment.tissue import TissueClassifierHMRF
 from dipy.data import read_tissue_data
-
+from Affine import affine_reg
 
 def resli(ImgPath,keep=False,newzooms=(2.,2.,2.)): #Corregir newzooms entrada
     img=nib.load(ImgPath)
@@ -50,7 +50,7 @@ def gtab(fbvalPath,fbvecPath):
     bvals, bvecs = read_bvals_bvecs(fbvalPath, fbvecPath)
     return (gradient_table(bvals, bvecs))
 
-def DTImodel(data,affine,mask,gtab,keep=False):
+def DTImodel(data,mask,affine,gtab,keep=False):
     tenmodel = dti.TensorModel(gtab)
     tenfit = tenmodel.fit(data, mask)
     if keep:
@@ -110,20 +110,16 @@ def preproccesing(img_path,save=True):
     print("--> Preproccesing")
     data, affine=resli(img_path)
     data= Nonlocal(data,affine)
-    b0_mask, mask=otsu(data,affine)  #maask binary
+    b0_mask,mask=otsu(data,affine)  #maask binary
     if save: #PREGUNTAR COMO GURARDAR AFFINE
         nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask_img")
         nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),"OtsuMask_img")
-    return b0_mask ,mask ,affine
+    return b0_mask,mask,affine
 
 def fahist(b0_mask ,mask ,affine,Bvalpath,Bvecpath,t1_path):
     PVE=segmentation(t1_path)
-    evals,evecs=DTImodel(b0_mask,affine,mask,gtab(Bvalpath,Bvecpath))
-    print('--> Calculando el mapa de anisotropia fraccional')
-    FA = fractional_anisotropy(evals)
-    print(FA.shape)
-    FA[np.isnan(FA)] = 0
-    nib.save(nib.Nifti1Image(FA.astype(np.float32), affine),"Mapa_anisotropia_fraccional")
+    c='/home/jueguevaramo/github/Tractos/Mapa_anisotropia_fraccional.nii'
+    FA=affine_reg(t1_path,c)
     CSF  = np.ravel(FA[PVE[...,0]>0.8])
     Gray = np.ravel(FA[PVE[...,1]>0.8])
     White= np.ravel(FA[PVE[...,2]>0.8])
@@ -136,4 +132,5 @@ def fahist(b0_mask ,mask ,affine,Bvalpath,Bvecpath,t1_path):
     plt.subplot(1,3,3)
     plt.hist(White,label="White Matter")
     plt.legend()
+    plt.show()
     return None
