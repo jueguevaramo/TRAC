@@ -2,6 +2,7 @@ import time
 import nibabel as nib
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from dipy.data import get_data
 from dipy.io import read_bvals_bvecs
 from dipy.io import read_bvals_bvecs
@@ -17,7 +18,7 @@ from dipy.segment.tissue import TissueClassifierHMRF
 from dipy.data import read_tissue_data
 from Affine import affine_reg
 
-def resli(ImgPath,keep=False,newzooms=(2.,2.,2.)): #Corregir newzooms entrada
+def resli(ImgPath, keep=False, newzooms=(2.,2.,2.)): #Corregir newzooms entrada
     img=nib.load(ImgPath)
     data=img.get_data()
     affine=img.affine
@@ -27,28 +28,34 @@ def resli(ImgPath,keep=False,newzooms=(2.,2.,2.)): #Corregir newzooms entrada
         nib.save(nib.Nifti1Image(data, affine),"Reslice")
     return data, affine
 
-def otsu(data,affine,median=4,pas=4,keep=False): #Corregir median, pas entrada
+
+def otsu(data, affine, median=4, pas=4, keep=False): #Corregir median, pas entrada
     b0_mask, mask = median_otsu(data,median,pas)
     if keep:
-        nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask")
-        nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),"OtsuMask")
+        nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),
+                "OtsuBoMask")
+        nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),
+                "OtsuMask")
     return b0_mask, mask
 
-def Nonlocal(data,affine,keep=False,filt=100): #Preguntar! #No usan denoise images PCA
-    if len(data.shape)== 3:
-        mask = data >filt
+
+def Nonlocal(data, affine, keep=False, filt=100): #Preguntar! #No usan denoise images PCA
+    if (len(data.shape)==3):
+        mask = data > filt
     else:
         mask = data[..., 1] > filt
     data2 = data #Preguntar
     sigma = np.std(data2[~mask])
     den = nlmeans(data2, sigma=sigma, mask=mask)
     if keep:
-        nib.save(nib.Nifti1Image(den.astype(np.float32),affine),"Nonlocal")
+        nib.save(nib.Nifti1Image(den.astype(np.float32), affine), "Nonlocal")
     return den
 
-def gtab(fbvalPath,fbvecPath):
+
+def gtab(fbvalPath, fbvecPath):
     bvals, bvecs = read_bvals_bvecs(fbvalPath, fbvecPath)
     return (gradient_table(bvals, bvecs))
+
 
 def DTImodel(data,mask,affine,gtab,keep=False):
     tenmodel = dti.TensorModel(gtab)
@@ -60,38 +67,49 @@ def DTImodel(data,mask,affine,gtab,keep=False):
         nib.save(evals_img, "evals")
     return tenfit.evals,tenfit.evecs
 
+
 def DTImaps(ImgPath,Bvalpath,Bvecpath,tracto=True):
     data, affine=resli(ImgPath)
     data= Nonlocal(data,affine)
     b0_mask, mask=otsu(data,affine)  #maask binary
     evals,evecs=DTImodel(b0_mask,affine,mask,gtab(Bvalpath,Bvecpath))
+
     print('--> Calculando el mapa de anisotropia fraccional')
+
     FA = fractional_anisotropy(evals)
     FA[np.isnan(FA)] = 0
-    nib.save(nib.Nifti1Image(FA.astype(np.float32), affine),"Mapa_anisotropia_fraccional")
+    nib.save(nib.Nifti1Image(FA.astype(np.float32),affine),
+            "Mapa_anisotropia_fraccional")
+
     print('--> Calculando el mapa de anisotropia fraccional RGB')
+
     FA2 = np.clip(FA, 0, 1)
     RGB = color_fa(FA2, evecs)
-    nib.save(nib.Nifti1Image(np.array(255 * RGB, 'uint8'), affine),"Mapa_anisotropia_fraccional RGB")
+    nib.save(nib.Nifti1Image(np.array(255 * RGB, 'uint8'),
+            affine),"Mapa_anisotropia_fraccional RGB")
+
     print('--> Calculando el mapa de difusividad media')
+
     MD1 = dti.mean_diffusivity(evals)
-    nib.save(nib.Nifti1Image(MD1.astype(np.float32), affine),"Mapa_difusividad_media")
+    nib.save(nib.Nifti1Image(MD1.astype(np.float32), affine),
+            "Mapa_difusividad_media")
     if tracto:
         sphere = get_sphere('symmetric724')
         peak_indices = quantize_evecs(evecs, sphere.vertices)
-
-        eu = EuDX(FA.astype('f8'), peak_indices, seeds=500000, odf_vertices = sphere.vertices, a_low=0.15)
+        eu = EuDX(FA.astype('f8'), peak_indices, seeds=500000,
+                    odf_vertices = sphere.vertices, a_low=0.15)
         tensor_streamlines = [streamline for streamline in eu]
         new_vox_sz = (2.,2.,2.)
         hdr = nib.trackvis.empty_header()
         hdr['voxel_size'] = new_vox_sz
         hdr['voxel_order'] = 'LAS'
         hdr['dim'] = FA.shape
-
         tensor_streamlines_trk = ((sl, None, None) for sl in tensor_streamlines)
         ten_sl_fname = "Tracto.trk"
-        nib.trackvis.write(ten_sl_fname, tensor_streamlines_trk, hdr, points_space='voxel')
+        nib.trackvis.write(ten_sl_fname, tensor_streamlines_trk,
+                            hdr, points_space='voxel')
     return FA
+
 
 def segmentation(t1_path):
     t1, t1bin,affine=preproccesing(t1_path,save=False)
@@ -100,11 +118,12 @@ def segmentation(t1_path):
     t0 = time.time()
     print('--> Computing segmentation')
     hmrf = TissueClassifierHMRF()
-    initial_segmentation, final_segmentation, PVE = hmrf.classify(t1, nclass, beta)
+    initial, final, PVE = hmrf.classify(t1, nclass, beta)
     t1 = time.time()
     total_time = t1-t0
     print('Total time:' + str(total_time))
     return PVE
+
 
 def preproccesing(img_path,save=True):
     print("--> Preproccesing")
@@ -112,9 +131,12 @@ def preproccesing(img_path,save=True):
     data= Nonlocal(data,affine)
     b0_mask,mask=otsu(data,affine)  #maask binary
     if save: #PREGUNTAR COMO GURARDAR AFFINE
-        nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),"OtsuBoMask_img")
-        nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),"OtsuMask_img")
+        nib.save(nib.Nifti1Image(b0_mask.astype(np.float32), affine),
+                "OtsuBoMask_img")
+        nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),
+                "OtsuMask_img")
     return b0_mask,mask,affine
+
 
 def fahist(b0_mask ,mask ,affine,Bvalpath,Bvecpath,t1_path):
     PVE=segmentation(t1_path)
@@ -124,13 +146,16 @@ def fahist(b0_mask ,mask ,affine,Bvalpath,Bvecpath,t1_path):
     Gray = np.ravel(FA[PVE[...,1]>0.8])
     White= np.ravel(FA[PVE[...,2]>0.8])
     plt.subplot(1,3,1)
-    plt.hist(CSF,label="CFS")
+    plt.hist(CSF,label="CFS",density=True)
+    sns.kdeplot(CSF)
     plt.legend()
     plt.subplot(1,3,2)
-    plt.hist(Gray,label="Gray Matter")
+    plt.hist(Gray,label="Gray Matter",density=True)
+    sns.kdeplot(Gray)
     plt.legend()
     plt.subplot(1,3,3)
-    plt.hist(White,label="White Matter")
+    plt.hist(White,label="White Matter",density=True)
+    sns.kdeplot(White)
     plt.legend()
     plt.show()
     return None
